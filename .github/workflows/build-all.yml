@@ -14,15 +14,15 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Download and Setup Android NDK (API 36 Ready)
+      - name: Download and Setup Android NDK r28c (API 36)
         run: |
-          echo "Downloading Android NDK r27c..."
-          curl -O https://dl.google.com/android/repository/android-ndk-r27c-linux.zip
+          echo "Downloading Android NDK r28c..."
+          curl -O https://dl.google.com/android/repository/android-ndk-r28c-linux.zip
           
           echo "Extracting NDK..."
-          unzip -q android-ndk-r27c-linux.zip
+          unzip -q android-ndk-r28c-linux.zip
           
-          mv android-ndk-r27c /opt/android-ndk
+          mv android-ndk-r28 /opt/android-ndk
           echo "NDK_HOME=/opt/android-ndk" >> $GITHUB_ENV
           
           # Set up toolchain binaries targeting API 36 for Pixel 9 / Android 16
