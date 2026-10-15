@@ -26,8 +26,8 @@ jobs:
           echo "NDK_HOME=${{ steps.setup-ndk.outputs.ndk-path }}" >> $GITHUB_ENV
           
           TOOLCHAIN="${{ steps.setup-ndk.outputs.ndk-path }}/toolchains/llvm/prebuilt/linux-x86_64"
-          echo "CC=$TOOLCHAIN/bin/aarch64-linux-android36-clang" >> $GITHUB_ENV
-          echo "CXX=$TOOLCHAIN/bin/aarch64-linux-android36-clang++" >> $GITHUB_ENV
+          echo "CC=$TOOLCHAIN/bin/aarch64-linux-android35-clang" >> $GITHUB_ENV
+          echo "CXX=$TOOLCHAIN/bin/aarch64-linux-android35-clang++" >> $GITHUB_ENV
           echo "AR=$TOOLCHAIN/bin/llvm-ar" >> $GITHUB_ENV
           echo "LD=$TOOLCHAIN/bin/ld.lld" >> $GITHUB_ENV
 
@@ -35,14 +35,14 @@ jobs:
         run: |
           sudo apt-get update && sudo apt-get install -y cmake build-essential
 
-      - name: 1. Build Custom Stream Server (API 36 / Latest Platform)
+      - name: 1. Build Custom Stream Server (API 35/36 Compatible)
         run: |
           mkdir -p build-server
           cd build-server
           cmake $GITHUB_WORKSPACE/server \
             -DCMAKE_TOOLCHAIN_FILE="$NDK_HOME/build/cmake/android.toolchain.cmake" \
             -DANDROID_ABI="arm64-v8a" \
-            -DANDROID_PLATFORM=latest \
+            -DANDROID_PLATFORM=android-35 \
             -DCMAKE_BUILD_TYPE=Release
           cmake --build . --config Release
 
