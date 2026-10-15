@@ -37,15 +37,16 @@ jobs:
         run: |
           sudo apt-get update && sudo apt-get install -y cmake ninja-build build-essential
 
-      - name: 1. Build Custom Stream Server (NDK r27c)
+      - name: 1. Build Custom Stream Server (CMake 3.31 Native Android Integration)
         run: |
           mkdir -p build-server
           cd build-server
           cmake "$GITHUB_WORKSPACE/server" \
             -G "Ninja" \
-            -DCMAKE_TOOLCHAIN_FILE="$NDK_HOME/build/cmake/android.toolchain.cmake" \
-            -DANDROID_ABI="arm64-v8a" \
-            -DANDROID_PLATFORM=android-35 \
+            -DCMAKE_SYSTEM_NAME=Android \
+            -DCMAKE_SYSTEM_VERSION=35 \
+            -DCMAKE_ANDROID_ARCH_ABI=arm64-v8a \
+            -DCMAKE_ANDROID_NDK="$NDK_HOME" \
             -DCMAKE_BUILD_TYPE=Release
           cmake --build . --config Release
 
@@ -66,7 +67,6 @@ jobs:
         run: |
           mkdir -p output_libs/arm64-v8a
           cp build-server/libstream_server.so output_libs/arm64-v8a/
-          # Genesis Plus GX outputs its libretro shared object inside the libretro folder
           cp cores/Genesis-Plus-GX/libretro/genesis_plus_gx_libretro.so output_libs/arm64-v8a/
           cp cores/pcsx_rearmed/pcsx_rearmed_libretro.so output_libs/arm64-v8a/
 
