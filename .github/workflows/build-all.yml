@@ -22,7 +22,8 @@ jobs:
           echo "Extracting NDK..."
           unzip -q android-ndk-r28c-linux.zip
           
-          mv android-ndk-r28 /opt/android-ndk
+          # Use wildcard to match any extracted NDK folder name safely
+          mv android-ndk-* /opt/android-ndk
           echo "NDK_HOME=/opt/android-ndk" >> $GITHUB_ENV
           
           # Set up toolchain binaries targeting API 36 for Pixel 9 / Android 16
