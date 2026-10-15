@@ -45,7 +45,7 @@ jobs:
           mkdir -p cores
           git clone https://github.com/libretro/Genesis-Plus-GX.git cores/Genesis-Plus-GX
           cd cores/Genesis-Plus-GX/libretro
-          make platform=unix CC="$CORE_CC" CXX="$CORE_CXX" AR="$CORE_AR" LD="$CORE_LD"
+          make -f Makefile.libretro platform=unix CC="$CORE_CC" CXX="$CORE_CXX" AR="$CORE_AR" LD="$CORE_LD"
 
       - name: 2. Build PCSX ReArmed Core (PS1)
         run: |
