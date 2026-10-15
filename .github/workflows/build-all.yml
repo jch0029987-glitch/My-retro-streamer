@@ -14,20 +14,18 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Download and Setup Android NDK r28c (API 36)
+      - name: Setup Android NDK r28c
+        uses: nttld/setup-ndk@v1
+        id: setup-ndk
+        with:
+          ndk-version: r28c
+          local-cache: true
+
+      - name: Configure Toolchain Environment
         run: |
-          echo "Downloading Android NDK r28c..."
-          curl -O https://dl.google.com/android/repository/android-ndk-r28c-linux.zip
+          echo "NDK_HOME=${{ steps.setup-ndk.outputs.ndk-path }}" >> $GITHUB_ENV
           
-          echo "Extracting NDK..."
-          unzip -q android-ndk-r28c-linux.zip
-          
-          # Use wildcard to match any extracted NDK folder name safely
-          mv android-ndk-* /opt/android-ndk
-          echo "NDK_HOME=/opt/android-ndk" >> $GITHUB_ENV
-          
-          # Set up toolchain binaries targeting API 36 for Pixel 9 / Android 16
-          TOOLCHAIN="/opt/android-ndk/toolchains/llvm/prebuilt/linux-x86_64"
+          TOOLCHAIN="${{ steps.setup-ndk.outputs.ndk-path }}/toolchains/llvm/prebuilt/linux-x86_64"
           echo "CC=$TOOLCHAIN/bin/aarch64-linux-android36-clang" >> $GITHUB_ENV
           echo "CXX=$TOOLCHAIN/bin/aarch64-linux-android36-clang++" >> $GITHUB_ENV
           echo "AR=$TOOLCHAIN/bin/llvm-ar" >> $GITHUB_ENV
@@ -64,14 +62,8 @@ jobs:
       - name: 4. Organize Output Binaries
         run: |
           mkdir -p output_libs/arm64-v8a
-          
-          # Copy custom server
           cp build-server/libstream_server.so output_libs/arm64-v8a/
-          
-          # Copy Sega Genesis core
           cp cores/Genesis-Plus-GX/genesis_plus_gx_libretro.so output_libs/arm64-v8a/
-          
-          # Copy PlayStation 1 core
           cp cores/pcsx_rearmed/pcsx_rearmed_libretro.so output_libs/arm64-v8a/
 
       - name: Upload All Native Binaries Artifact
