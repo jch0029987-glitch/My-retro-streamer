@@ -23,13 +23,17 @@ jobs:
 
       - name: Configure Toolchain Environment
         run: |
-          echo "NDK_HOME=${{ steps.setup-ndk.outputs.ndk-path }}" >> $GITHUB_ENV
+          NDK_PATH="${{ steps.setup-ndk.outputs.ndk-path }}"
+          echo "NDK_HOME=$NDK_PATH" >> $GITHUB_ENV
           
-          TOOLCHAIN="${{ steps.setup-ndk.outputs.ndk-path }}/toolchains/llvm/prebuilt/linux-x86_64"
-          echo "CC=$TOOLCHAIN/bin/aarch64-linux-android35-clang" >> $GITHUB_ENV
-          echo "CXX=$TOOLCHAIN/bin/aarch64-linux-android35-clang++" >> $GITHUB_ENV
-          echo "AR=$TOOLCHAIN/bin/llvm-ar" >> $GITHUB_ENV
-          echo "LD=$TOOLCHAIN/bin/ld.lld" >> $GITHUB_ENV
+          TOOLCHAIN="$NDK_PATH/toolchains/llvm/prebuilt/linux-x86_64/bin"
+          echo "TOOLCHAIN_BIN=$TOOLCHAIN" >> $GITHUB_ENV
+          
+          # Target API 35/36 toolchain binaries for Makefiles
+          echo "CORE_CC=$TOOLCHAIN/aarch64-linux-android35-clang" >> $GITHUB_ENV
+          echo "CORE_CXX=$TOOLCHAIN/aarch64-linux-android35-clang++" >> $GITHUB_ENV
+          echo "CORE_AR=$TOOLCHAIN/llvm-ar" >> $GITHUB_ENV
+          echo "CORE_LD=$TOOLCHAIN/ld.lld" >> $GITHUB_ENV
 
       - name: Install Build Essentials & CMake
         run: |
@@ -39,6 +43,8 @@ jobs:
         run: |
           mkdir -p build-server
           cd build-server
+          # Unset any inherited CC/CXX so CMake's NDK toolchain file works cleanly
+          unset CC CXX
           cmake $GITHUB_WORKSPACE/server \
             -DCMAKE_TOOLCHAIN_FILE="$NDK_HOME/build/cmake/android.toolchain.cmake" \
             -DANDROID_ABI="arm64-v8a" \
@@ -51,13 +57,13 @@ jobs:
           mkdir -p cores
           git clone https://github.com/libretro/Genesis-Plus-GX.git cores/Genesis-Plus-GX
           cd cores/Genesis-Plus-GX
-          make -f Makefile platform=unix CC="$CC" CXX="$CXX" AR="$AR" LD="$LD"
+          make -f Makefile platform=unix CC="$CORE_CC" CXX="$CORE_CXX" AR="$CORE_AR" LD="$CORE_LD"
 
       - name: 3. Build PCSX ReArmed Core (PS1)
         run: |
           git clone https://github.com/libretro/pcsx_rearmed.git cores/pcsx_rearmed
           cd cores/pcsx_rearmed
-          make -f Makefile.libretro platform=unix CC="$CC" CXX="$CXX" AR="$AR" LD="$LD" ARCH=arm64
+          make -f Makefile.libretro platform=unix CC="$CORE_CC" CXX="$CORE_CXX" AR="$CORE_AR" LD="$CORE_LD" ARCH=arm64
 
       - name: 4. Organize Output Binaries
         run: |
