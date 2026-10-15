@@ -53,8 +53,8 @@ jobs:
         run: |
           mkdir -p cores
           git clone https://github.com/libretro/Genesis-Plus-GX.git cores/Genesis-Plus-GX
-          cd cores/Genesis-Plus-GX
-          make -f Makefile platform=unix CC="$CORE_CC" CXX="$CORE_CXX" AR="$CORE_AR" LD="$CORE_LD"
+          cd cores/Genesis-Plus-GX/libretro
+          make platform=unix CC="$CORE_CC" CXX="$CORE_CXX" AR="$CORE_AR" LD="$CORE_LD"
 
       - name: 3. Build PCSX ReArmed Core (PS1)
         run: |
@@ -66,7 +66,8 @@ jobs:
         run: |
           mkdir -p output_libs/arm64-v8a
           cp build-server/libstream_server.so output_libs/arm64-v8a/
-          cp cores/Genesis-Plus-GX/genesis_plus_gx_libretro.so output_libs/arm64-v8a/
+          # Genesis Plus GX outputs its libretro shared object inside the libretro folder
+          cp cores/Genesis-Plus-GX/libretro/genesis_plus_gx_libretro.so output_libs/arm64-v8a/
           cp cores/pcsx_rearmed/pcsx_rearmed_libretro.so output_libs/arm64-v8a/
 
       - name: Upload All Native Binaries Artifact
