@@ -38,17 +38,14 @@ jobs:
         run: |
           sudo apt-get update && sudo apt-get install -y cmake build-essential
 
-      - name: 1. Build Custom Stream Server (Explicit CMake Args)
+      - name: 1. Build Custom Stream Server (Standard NDK CMake Integration)
         run: |
           mkdir -p build-server
           cd build-server
           cmake "$GITHUB_WORKSPACE/server" \
-            -G "Unix Makefiles" \
             -DCMAKE_TOOLCHAIN_FILE="$NDK_HOME/build/cmake/android.toolchain.cmake" \
             -DANDROID_ABI="arm64-v8a" \
             -DANDROID_PLATFORM=android-35 \
-            -DCMAKE_SYSTEM_NAME=Android \
-            -DCMAKE_C_COMPILER="$NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/clang" \
             -DCMAKE_BUILD_TYPE=Release
           cmake --build . --config Release
 
