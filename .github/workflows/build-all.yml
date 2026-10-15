@@ -14,11 +14,11 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Setup Android NDK r28c
+      - name: Setup Android NDK r27c
         uses: nttld/setup-ndk@v1
         id: setup-ndk
         with:
-          ndk-version: r28c
+          ndk-version: r27c
           local-cache: true
 
       - name: Configure Toolchain Environment
@@ -37,7 +37,7 @@ jobs:
         run: |
           sudo apt-get update && sudo apt-get install -y cmake ninja-build build-essential
 
-      - name: 1. Build Custom Stream Server (Ninja + NDK Toolchain)
+      - name: 1. Build Custom Stream Server (NDK r27c)
         run: |
           mkdir -p build-server
           cd build-server
