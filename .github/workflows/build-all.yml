@@ -1,0 +1,71 @@
+name: Build All Native Binaries (arm64-v8a)
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  build-natives:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Android SDK & NDK
+        uses: android-actions/setup-android@v3
+
+      - name: Configure NDK Environment Variables
+        run: |
+          echo "NDK_HOME=${{ steps.setup-android.outputs.ndk-path }}" >> $GITHUB_ENV
+          TOOLCHAIN="${{ steps.setup-android.outputs.ndk-path }}/toolchains/llvm/prebuilt/linux-x86_64"
+          echo "CC=$TOOLCHAIN/bin/aarch64-linux-android28-clang" >> $GITHUB_ENV
+          echo "CXX=$TOOLCHAIN/bin/aarch64-linux-android28-clang++" >> $GITHUB_ENV
+          echo "AR=$TOOLCHAIN/bin/llvm-ar" >> $GITHUB_ENV
+          echo "LD=$TOOLCHAIN/bin/ld.lld" >> $GITHUB_ENV
+
+      - name: 1. Build Custom Stream Server
+        run: |
+          mkdir -p build-server
+          cd build-server
+          cmake ../server \
+            -DCMAKE_TOOLCHAIN_FILE="$NDK_HOME/build/cmake/android.toolchain.cmake" \
+            -DANDROID_ABI="arm64-v8a" \
+            -DANDROID_PLATFORM=android-28 \
+            -DCMAKE_BUILD_TYPE=Release
+          cmake --build . --config Release
+
+      - name: 2. Build Genesis Plus GX Core (Sega)
+        run: |
+          mkdir -p cores
+          git clone https://github.com/libretro/Genesis-Plus-GX.git cores/Genesis-Plus-GX
+          cd cores/Genesis-Plus-GX
+          make -f Makefile platform=unix CC="$CC" CXX="$CXX" AR="$AR" LD="$LD"
+
+      - name: 3. Build PCSX ReArmed Core (PS1)
+        run: |
+          git clone https://github.com/libretro/pcsx_rearmed.git cores/pcsx_rearmed
+          cd cores/pcsx_rearmed
+          # PCSX ReArmed uses platform=android-arm64 or unix depending on the toolchain overrides
+          make -f Makefile.libretro platform=unix CC="$CC" CXX="$CXX" AR="$AR" LD="$LD" ARCH=arm64
+
+      - name: 4. Organize Output Binaries
+        run: |
+          mkdir -p output_libs/arm64-v8a
+          
+          # Copy custom server
+          cp build-server/libstream_server.so output_libs/arm64-v8a/
+          
+          # Copy Sega Genesis core
+          cp cores/Genesis-Plus-GX/genesis_plus_gx_libretro.so output_libs/arm64-v8a/
+          
+          # Copy PlayStation 1 core
+          cp cores/pcsx_rearmed/pcsx_rearmed_libretro.so output_libs/arm64-v8a/
+
+      - name: Upload All Native Binaries Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-arm64-libs
+          path: output_libs/
