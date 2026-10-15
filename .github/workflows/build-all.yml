@@ -20,18 +20,18 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Install Android SDK NDK via SDKManager
+      - name: Install Android NDK via SDK Manager Action
+        uses: android-actions/setup-android@v3
+        with:
+          ndk-version: '26.1.1090912'
+          cmake-version: '3.22.1'
+          build-tools-version: '34.0.0'
+
+      - name: Configure NDK Environment Variables
         run: |
-          # Accept SDK licenses automatically
-          yes | sdkmanager --licenses || true
+          echo "NDK_HOME=${{ steps.setup-android.outputs.ndk-path }}" >> $GITHUB_ENV
           
-          # Install the required NDK version and CMake for command-line compilation
-          sdkmanager "ndk;26.1.1090912" "cmake;3.22.1"
-          
-          # Export paths for subsequent steps
-          echo "NDK_HOME=$ANDROID_SDK_ROOT/ndk/26.1.1090912" >> $GITHUB_ENV
-          
-          TOOLCHAIN="$ANDROID_SDK_ROOT/ndk/26.1.1090912/toolchains/llvm/prebuilt/linux-x86_64"
+          TOOLCHAIN="${{ steps.setup-android.outputs.ndk-path }}/toolchains/llvm/prebuilt/linux-x86_64"
           echo "CC=$TOOLCHAIN/bin/aarch64-linux-android28-clang" >> $GITHUB_ENV
           echo "CXX=$TOOLCHAIN/bin/aarch64-linux-android28-clang++" >> $GITHUB_ENV
           echo "AR=$TOOLCHAIN/bin/llvm-ar" >> $GITHUB_ENV
