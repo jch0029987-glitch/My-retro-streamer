@@ -14,13 +14,24 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Setup Android SDK & NDK
-        uses: android-actions/setup-android@v3
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
 
-      - name: Configure NDK Environment Variables
+      - name: Install Android SDK NDK via SDKManager
         run: |
-          echo "NDK_HOME=${{ steps.setup-android.outputs.ndk-path }}" >> $GITHUB_ENV
-          TOOLCHAIN="${{ steps.setup-android.outputs.ndk-path }}/toolchains/llvm/prebuilt/linux-x86_64"
+          # Accept SDK licenses automatically
+          yes | sdkmanager --licenses || true
+          
+          # Install the required NDK version and CMake for command-line compilation
+          sdkmanager "ndk;26.1.1090912" "cmake;3.22.1"
+          
+          # Export paths for subsequent steps
+          echo "NDK_HOME=$ANDROID_SDK_ROOT/ndk/26.1.1090912" >> $GITHUB_ENV
+          
+          TOOLCHAIN="$ANDROID_SDK_ROOT/ndk/26.1.1090912/toolchains/llvm/prebuilt/linux-x86_64"
           echo "CC=$TOOLCHAIN/bin/aarch64-linux-android28-clang" >> $GITHUB_ENV
           echo "CXX=$TOOLCHAIN/bin/aarch64-linux-android28-clang++" >> $GITHUB_ENV
           echo "AR=$TOOLCHAIN/bin/llvm-ar" >> $GITHUB_ENV
@@ -48,7 +59,6 @@ jobs:
         run: |
           git clone https://github.com/libretro/pcsx_rearmed.git cores/pcsx_rearmed
           cd cores/pcsx_rearmed
-          # PCSX ReArmed uses platform=android-arm64 or unix depending on the toolchain overrides
           make -f Makefile.libretro platform=unix CC="$CC" CXX="$CXX" AR="$AR" LD="$LD" ARCH=arm64
 
       - name: 4. Organize Output Binaries
