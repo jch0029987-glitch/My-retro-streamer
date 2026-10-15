@@ -35,14 +35,14 @@ jobs:
         run: |
           sudo apt-get update && sudo apt-get install -y cmake build-essential
 
-      - name: 1. Build Custom Stream Server (API 36)
+      - name: 1. Build Custom Stream Server (API 36 / Latest Platform)
         run: |
           mkdir -p build-server
           cd build-server
           cmake $GITHUB_WORKSPACE/server \
             -DCMAKE_TOOLCHAIN_FILE="$NDK_HOME/build/cmake/android.toolchain.cmake" \
             -DANDROID_ABI="arm64-v8a" \
-            -DANDROID_PLATFORM=android-36 \
+            -DANDROID_PLATFORM=latest \
             -DCMAKE_BUILD_TYPE=Release
           cmake --build . --config Release
 
