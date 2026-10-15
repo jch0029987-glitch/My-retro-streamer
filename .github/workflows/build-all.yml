@@ -21,14 +21,21 @@ jobs:
           ndk-version: r27c
           local-cache: true
 
-      - name: Configure Toolchain Environment
+      - name: Configure Toolchain Environment & Fix Wrapper Symlinks
         run: |
           NDK_PATH="${{ steps.setup-ndk.outputs.ndk-path }}"
           echo "NDK_HOME=$NDK_PATH" >> $GITHUB_ENV
           
           TOOLCHAIN="$NDK_PATH/toolchains/llvm/prebuilt/linux-x86_64/bin"
           
-          # Target API 35 toolchain binaries for cross-compilation
+          # Ensure base clang/clang++ binaries exist for NDK r27c API wrapper scripts
+          if [ ! -e "$TOOLCHAIN/clang" ]; then
+            ln -s "$TOOLCHAIN/clang-18" "$TOOLCHAIN/clang" 2>/dev/null || ln -s "$TOOLCHAIN/aarch64-linux-android-clang" "$TOOLCHAIN/clang"
+          fi
+          if [ ! -e "$TOOLCHAIN/clang++" ]; then
+            ln -s "$TOOLCHAIN/clang++-18" "$TOOLCHAIN/clang++" 2>/dev/null || ln -s "$TOOLCHAIN/aarch64-linux-android-clang++" "$TOOLCHAIN/clang++"
+          fi
+          
           echo "CORE_CC=$TOOLCHAIN/aarch64-linux-android35-clang" >> $GITHUB_ENV
           echo "CORE_CXX=$TOOLCHAIN/aarch64-linux-android35-clang++" >> $GITHUB_ENV
           echo "CORE_AR=$TOOLCHAIN/llvm-ar" >> $GITHUB_ENV
