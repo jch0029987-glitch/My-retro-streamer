@@ -1,66 +1,33 @@
-name: Build Emulator Cores (Android 35 / arm64-v8a)
+name: Build Native Library
 
 on:
   push:
     branches: [ main, master ]
-  pull_request:
-    branches: [ main, master ]
+  workflow_dispatch:
 
 jobs:
-  build-cores:
+  build:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Setup Android NDK r27c
-        uses: nttld/setup-ndk@v1
-        id: setup-ndk
+      - name: Set up Android NDK
+        uses: nttld/setup-ndk@v3
         with:
-          ndk-version: r27c
-          local-cache: true
+          ndk-version: r26b
+          add-to-path: true
 
-      - name: Configure Toolchain Environment & Fix Wrapper Symlinks
+      - name: Compile libclient_bridge.so
         run: |
-          NDK_PATH="${{ steps.setup-ndk.outputs.ndk-path }}"
-          echo "NDK_HOME=$NDK_PATH" >> $GITHUB_ENV
+          # Use the official NDK Clang compiler for 32-bit ARM Android API 24
+          CC=$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/armv7a-linux-androideabi24-clang
           
-          TOOLCHAIN="$NDK_PATH/toolchains/llvm/prebuilt/linux-x86_64/bin"
-          
-          ln -sf "$TOOLCHAIN/clang-18" "$TOOLCHAIN/clang"
-          ln -sf "$TOOLCHAIN/clang++-18" "$TOOLCHAIN/clang++"
-          
-          echo "CORE_CC=$TOOLCHAIN/aarch64-linux-android35-clang" >> $GITHUB_ENV
-          echo "CORE_CXX=$TOOLCHAIN/aarch64-linux-android35-clang++" >> $GITHUB_ENV
-          echo "CORE_AR=$TOOLCHAIN/llvm-ar" >> $GITHUB_ENV
-          echo "CORE_LD=$TOOLCHAIN/ld.lld" >> $GITHUB_ENV
+          $CC -shared -fPIC client_bridge.c \
+              -o libclient_bridge.so \
+              -O3
 
-      - name: Install Build Essentials
-        run: |
-          sudo apt-get update && sudo apt-get install -y build-essential
-
-      - name: 1. Build Genesis Plus GX Core (Sega)
-        run: |
-          mkdir -p cores
-          git clone https://github.com/libretro/Genesis-Plus-GX.git cores/Genesis-Plus-GX
-          cd cores/Genesis-Plus-GX
-          make -f Makefile.libretro platform=unix CC="$CORE_CC" CXX="$CORE_CXX" AR="$CORE_AR" LD="$CORE_LD"
-
-      - name: 2. Build PCSX ReArmed Core (PS1)
-        run: |
-          git clone https://github.com/libretro/pcsx_rearmed.git cores/pcsx_rearmed
-          cd cores/pcsx_rearmed
-          make -f Makefile.libretro platform=unix CC="$CORE_CC" CXX="$CORE_CXX" AR="$CORE_AR" LD="$CORE_LD" ARCH=arm64
-
-      - name: 3. Organize Output Cores
-        run: |
-          mkdir -p output_libs/arm64-v8a
-          cp cores/Genesis-Plus-GX/genesis_plus_gx_libretro.so output_libs/arm64-v8a/
-          cp cores/pcsx_rearmed/pcsx_rearmed_libretro.so output_libs/arm64-v8a/
-
-      - name: Upload Emulator Core Artifacts
+      - name: Upload Build Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: emulator-cores-arm64
-          path: output_libs/
+          name: armeabi-v7a-libs
+          path: libclient_bridge.so
