@@ -1,7 +1,10 @@
 cmake_minimum_required(VERSION 3.22.1)
-project(stream_server C)
+
+# Initialize project with C and let the NDK toolchain manage the compiler cleanly
+project(stream_server VERSION 1.0 LANGUAGES C)
 
 set(CMAKE_C_STANDARD 11)
+set(CMAKE_C_STANDARD_REQUIRED ON)
 
 add_library(stream_server SHARED
     stream_server.c
