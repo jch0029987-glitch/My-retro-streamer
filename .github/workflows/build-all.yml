@@ -40,7 +40,7 @@ jobs:
         run: |
           mkdir -p build-server
           cd build-server
-          cmake ../server \
+          cmake $GITHUB_WORKSPACE/server \
             -DCMAKE_TOOLCHAIN_FILE="$NDK_HOME/build/cmake/android.toolchain.cmake" \
             -DANDROID_ABI="arm64-v8a" \
             -DANDROID_PLATFORM=android-36 \
@@ -78,4 +78,3 @@ jobs:
         with:
           name: native-arm64-android16-libs
           path: output_libs/
-          
