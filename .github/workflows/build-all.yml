@@ -27,9 +27,8 @@ jobs:
           echo "NDK_HOME=$NDK_PATH" >> $GITHUB_ENV
           
           TOOLCHAIN="$NDK_PATH/toolchains/llvm/prebuilt/linux-x86_64/bin"
-          echo "TOOLCHAIN_BIN=$TOOLCHAIN" >> $GITHUB_ENV
           
-          # Target API 35/36 toolchain binaries for Makefiles
+          # Target API 35 toolchain binaries for Makefiles
           echo "CORE_CC=$TOOLCHAIN/aarch64-linux-android35-clang" >> $GITHUB_ENV
           echo "CORE_CXX=$TOOLCHAIN/aarch64-linux-android35-clang++" >> $GITHUB_ENV
           echo "CORE_AR=$TOOLCHAIN/llvm-ar" >> $GITHUB_ENV
@@ -39,16 +38,17 @@ jobs:
         run: |
           sudo apt-get update && sudo apt-get install -y cmake build-essential
 
-      - name: 1. Build Custom Stream Server (API 35/36 Compatible)
+      - name: 1. Build Custom Stream Server (Explicit CMake Args)
         run: |
           mkdir -p build-server
           cd build-server
-          # Unset any inherited CC/CXX so CMake's NDK toolchain file works cleanly
-          unset CC CXX
-          cmake $GITHUB_WORKSPACE/server \
+          cmake "$GITHUB_WORKSPACE/server" \
+            -G "Unix Makefiles" \
             -DCMAKE_TOOLCHAIN_FILE="$NDK_HOME/build/cmake/android.toolchain.cmake" \
             -DANDROID_ABI="arm64-v8a" \
             -DANDROID_PLATFORM=android-35 \
+            -DCMAKE_SYSTEM_NAME=Android \
+            -DCMAKE_C_COMPILER="$NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/clang" \
             -DCMAKE_BUILD_TYPE=Release
           cmake --build . --config Release
 
