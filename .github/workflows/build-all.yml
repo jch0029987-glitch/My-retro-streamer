@@ -1,4 +1,4 @@
-name: Build All Native Binaries (Android 16 / arm64-v8a)
+name: Build All Native Binaries (Android 35 / arm64-v8a)
 
 on:
   push:
@@ -21,43 +21,29 @@ jobs:
           ndk-version: r27c
           local-cache: true
 
-      - name: Pin Stable CMake (3.30.5)
-        uses: ssrobins/install-cmake@v1
-        with:
-          version: 3.30.5
-
-      - name: Configure Toolchain Environment Variables
+      - name: Configure Toolchain Environment
         run: |
           NDK_PATH="${{ steps.setup-ndk.outputs.ndk-path }}"
-          echo "ANDROID_NDK_HOME=$NDK_PATH" >> $GITHUB_ENV
-          echo "ANDROID_NDK=$NDK_PATH" >> $GITHUB_ENV
           echo "NDK_HOME=$NDK_PATH" >> $GITHUB_ENV
           
           TOOLCHAIN="$NDK_PATH/toolchains/llvm/prebuilt/linux-x86_64/bin"
           
+          # Target API 35 toolchain binaries for cross-compilation
           echo "CORE_CC=$TOOLCHAIN/aarch64-linux-android35-clang" >> $GITHUB_ENV
           echo "CORE_CXX=$TOOLCHAIN/aarch64-linux-android35-clang++" >> $GITHUB_ENV
           echo "CORE_AR=$TOOLCHAIN/llvm-ar" >> $GITHUB_ENV
           echo "CORE_LD=$TOOLCHAIN/ld.lld" >> $GITHUB_ENV
 
-      - name: Install Build Essentials & Ninja
+      - name: Install Build Essentials
         run: |
-          sudo apt-get update && sudo apt-get install -y ninja-build build-essential
+          sudo apt-get update && sudo apt-get install -y build-essential
 
-      - name: 1. Build Custom Stream Server
-        env:
-          ANDROID_NDK: ${{ steps.setup-ndk.outputs.ndk-path }}
-          ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
+      - name: 1. Build Custom Stream Server (Makefile)
         run: |
           mkdir -p build-server
-          cd build-server
-          cmake "$GITHUB_WORKSPACE/server" \
-            -G "Ninja" \
-            -DCMAKE_TOOLCHAIN_FILE="${{ steps.setup-ndk.outputs.ndk-path }}/build/cmake/android.toolchain.cmake" \
-            -DANDROID_ABI="arm64-v8a" \
-            -DANDROID_PLATFORM=android-35 \
-            -DCMAKE_BUILD_TYPE=Release
-          cmake --build . --config Release
+          cd server
+          make CC="$CORE_CC" AR="$CORE_AR" LD="$CORE_LD"
+          cp libstream_server.so ../build-server/
 
       - name: 2. Build Genesis Plus GX Core (Sega)
         run: |
@@ -82,5 +68,5 @@ jobs:
       - name: Upload All Native Binaries Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: native-arm64-android16-libs
+          name: native-arm64-android-libs
           path: output_libs/
