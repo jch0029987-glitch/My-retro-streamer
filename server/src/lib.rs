@@ -113,7 +113,7 @@ pub extern "system" fn Java_com_jeremy_retroclient_NativeReceiver_stopReceiver(
 pub extern "system" fn Java_com_jeremy_retroclient_NativeReceiver_getStats(
     env: *mut jni_sys::JNIEnv,
     _thiz: *mut std::ffi::c_void,
-) -> *mut jni_sys::jlongArray {
+) -> jni_sys::jlongArray {
     let (packets, frames) = unsafe {
         (G_PACKETS_RECEIVED as i64, G_FRAMES_RENDERED as i64)
     };
