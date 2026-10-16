@@ -1,33 +1,38 @@
-name: Build Native Library
+name: Build Android Native Library
 
 on:
   push:
     branches: [ main, master ]
-  workflow_dispatch:
+  pull_request:
+    branches: [ main, master ]
 
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v4
+    - name: Checkout Repository
+      uses: actions/checkout@v4
 
-      - name: Set up Android NDK
-        uses: nttld/setup-ndk@v3
-        with:
-          ndk-version: r26b
-          add-to-path: true
+    - name: Set up Rust Toolchain
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        targets: armv7-linux-androideabi
 
-      - name: Compile libclient_bridge.so
-        run: |
-          # Use the official NDK Clang compiler for 32-bit ARM Android API 24
-          CC=$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/armv7a-linux-androideabi24-clang
-          
-          $CC -shared -fPIC client_bridge.c \
-              -o libclient_bridge.so \
-              -O3
+    - name: Setup Android NDK
+      uses: nttld/setup-ndk@v3
+      with:
+        ndk-version: r27c
+        link-to-sdk: false
 
-      - name: Upload Build Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: armeabi-v7a-libs
-          path: libclient_bridge.so
+    - name: Build with Cargo NDK
+      run: |
+        cargo install cargo-ndk
+        cargo ndk -t armeabi-v7a -p 34 build --release
+
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: libclient_bridge-armeabi-v7a
+        path: target/armv7-linux-androideabi/release/libclient_bridge.so
+EOF
