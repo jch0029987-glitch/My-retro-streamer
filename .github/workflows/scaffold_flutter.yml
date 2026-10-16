@@ -1,0 +1,102 @@
+name: Scaffold Flutter Project Structure
+
+on:
+  workflow_dispatch: # Allows you to run this manually from the GitHub Actions tab
+
+jobs:
+  scaffold:
+    name: Generate Flutter Apps & FFI Structure
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # Required to push generated files back to the repo
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter SDK
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.19.x'
+          channel: 'stable'
+          cache: true
+
+      - name: Scaffold Pixel 9 Host App
+        run: |
+          if [ ! -d "retro_host_app" ]; then
+            flutter create retro_host_app --platforms android
+          fi
+
+      - name: Scaffold ARMv7-A Client App
+        run: |
+          if [ ! -d "retro_client_app" ]; then
+            flutter create retro_client_app --platforms android
+          fi
+
+      - name: Create Host FFI & UI Code
+        run: |
+          mkdir -p retro_host_app/lib
+          cat << 'EOF' > retro_host_app/lib/host_engine.dart
+          import 'dart:ffi';
+          import 'dart:io';
+
+          typedef StartHostC = Int32 Function(Uint16 port);
+          typedef StartHostDart = int Function(int port);
+
+          class HostEngine {
+            late final DynamicLibrary _lib;
+            late final StartHostDart _startHostNode;
+
+            HostEngine() {
+              if (Platform.isAndroid) {
+                _lib = DynamicLibrary.open("libretro_engine.so");
+              } else {
+                throw UnsupportedError("Host engine requires Android ARM64.");
+              }
+              _startHostNode = _lib
+                  .lookup<NativeFunction<StartHostC>>('start_host_node')
+                  .asFunction<StartHostDart>();
+            }
+
+            int startServer(int port) => _startHostNode(port);
+          }
+          EOF
+
+      - name: Create Client FFI & UI Code
+        run: |
+          mkdir -p retro_client_app/lib
+          cat << 'EOF' > retro_client_app/lib/client_engine.dart
+          import 'dart:ffi';
+          import 'dart:io';
+
+          typedef StartClientC = Int32 Function(Pointer<Utf8> hostIp, Uint16 port);
+          typedef StartClientDart = int Function(Pointer<Utf8> hostIp, int port);
+
+          class ClientEngine {
+            late final DynamicLibrary _lib;
+            late final StartClientDart _startClientNode;
+
+            ClientEngine() {
+              if (Platform.isAndroid) {
+                _lib = DynamicLibrary.open("libretro_engine.so");
+              } else {
+                throw UnsupportedError("Client engine requires Android ARMv7-A.");
+              }
+              _startClientNode = _lib
+                  .lookup<NativeFunction<StartClientC>>('start_client_node')
+                  .asFunction<StartClientDart>();
+            }
+
+            int connectToHost(String ip, int port) {
+              // FFI connection wiring
+              return 0;
+            }
+          }
+          EOF
+
+      - name: Commit and Push Generated Structure
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add retro_host_app/ retro_client_app/
+          git diff --quiet && git diff --staged --quiet || (git commit -m "chore: auto-generate flutter project structure and ffi bindings" && git push)
