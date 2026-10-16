@@ -8,4 +8,4 @@ name = "client_bridge"
 crate-type = ["cdylib"]
 
 [dependencies]
-# Standard library only—zero external crate dependencies
+jni_sys = "0.3.0"
