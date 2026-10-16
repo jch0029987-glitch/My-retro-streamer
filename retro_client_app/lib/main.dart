@@ -1,125 +1,199 @@
+import 'dart:ffi';
+import 'dart:io';
+import 'package:ffi/ffi.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
-void main() {
-  runApp(const MyApp());
+typedef StartClientC = Int32 Function(Pointer<Utf8> hostIp, Uint16 port);
+typedef StartClientDart = int Function(Pointer<Utf8> hostIp, int port);
+
+// Optional: FFI signature for sending input state changes
+typedef SendInputC = Int32 Function(Uint32 buttonMask);
+typedef SendInputDart = int Function(int buttonMask);
+
+class ClientEngineFfi {
+  late final DynamicLibrary _lib;
+  late final StartClientDart _startClientNode;
+  SendInputDart? _sendInput;
+
+  ClientEngineFfi() {
+    if (Platform.isAndroid) {
+      _lib = DynamicLibrary.open("libretro_engine.so");
+    } else {
+      throw UnsupportedError("Client engine requires Android.");
+    }
+
+    _startClientNode = _lib
+        .lookup<NativeFunction<StartClientC>>('start_client_node')
+        .asFunction<StartClientDart>();
+
+    try {
+      _sendInput = _lib
+          .lookup<NativeFunction<SendInputC>>('send_input_state')
+          .asFunction<SendInputDart>();
+    } catch (_) {
+      // Optional binding if implemented in Rust
+    }
+  }
+
+  int connect(String ip, int port) {
+    final ipPtr = ip.toNativeUtf8();
+    final res = _startClientNode(ipPtr, port);
+    calloc.free(ipPtr);
+    return res;
+  }
+
+  void pushInput(int mask) {
+    _sendInput?.call(mask);
+  }
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+void main() {
+  runApp(const RetroClientApp());
+}
 
-  // This widget is the root of your application.
+class RetroClientApp extends StatelessWidget {
+  const RetroClientApp({super.key});
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flutter Demo',
-      theme: ThemeData(
-        // This is the theme of your application.
-        //
-        // TRY THIS: Try running your application with "flutter run". You'll see
-        // the application has a purple toolbar. Then, without quitting the app,
-        // try changing the seedColor in the colorScheme below to Colors.green
-        // and then invoke "hot reload" (save your changes or press the "hot
-        // reload" button in a Flutter-supported IDE, or press "r" if you used
-        // the command line to start the app).
-        //
-        // Notice that the counter didn't reset back to zero; the application
-        // state is not lost during the reload. To reset the state, use hot
-        // restart instead.
-        //
-        // This works for code too, not just values: Most code changes can be
-        // tested with just a hot reload.
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
-        useMaterial3: true,
-      ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
+      title: 'Retro Stream Client',
+      theme: ThemeData.dark(useMaterial3: true),
+      home: const ClientHomePage(),
     );
   }
 }
 
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title});
-
-  // This widget is the home page of your application. It is stateful, meaning
-  // that it has a State object (defined below) that contains fields that affect
-  // how it looks.
-
-  // This class is the configuration for the state. It holds the values (in this
-  // case the title) provided by the parent (in this case the App widget) and
-  // used by the build method of the State. Fields in a Widget subclass are
-  // always marked "final".
-
-  final String title;
+class ClientHomePage extends StatefulWidget {
+  const ClientHomePage({super.key});
 
   @override
-  State<MyHomePage> createState() => _MyHomePageState();
+  State<ClientHomePage> createState() => _ClientHomePageState();
 }
 
-class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
+class _ClientHomePageState extends State<ClientHomePage> {
+  late final ClientEngineFfi _engine;
+  final TextEditingController _ipController = TextEditingController();
+  bool _isConnected = false;
+  String _status = 'Disconnected - Pair Bluetooth Controller';
+  final int _port = 8554;
+  int _currentButtonMask = 0;
 
-  void _incrementCounter() {
+  @override
+  void initState() {
+    super.initState();
+    try {
+      _engine = ClientEngineFfi();
+    } catch (e) {
+      _status = 'FFI Load Error: $e';
+    }
+  }
+
+  void _connectToHost() {
+    final ip = _ipController.text.trim();
+    if (ip.isEmpty) return;
+
+    final res = _engine.connect(ip, _port);
     setState(() {
-      // This call to setState tells the Flutter framework that something has
-      // changed in this State, which causes it to rerun the build method below
-      // so that the display can reflect the updated values. If we changed
-      // _counter without calling setState(), then the build method would not be
-      // called again, and so nothing would appear to happen.
-      _counter++;
+      if (res == 0) {
+        _isConnected = true;
+        _status = 'Connected to Pixel 9 at $ip:$_port\nListening for Bluetooth Controller...';
+      } else {
+        _status = 'Connection failed (Code: $res)';
+      }
     });
+  }
+
+  // Handle hardware gamepad / keyboard events mapped from Bluetooth controller
+  KeyEventResult _handleKeyEvent(FocusNode node, KeyEvent event) {
+    if (!_isConnected) return KeyEventResult.ignored;
+
+    int maskChange = 0;
+    // Map standard Android gamepad keycodes / hardware keys
+    if (event.logicalKey == LogicalKeyboardKey.gamepadA ||
+        event.logicalKey == LogicalKeyboardKey.select) {
+      maskChange = 0x01;
+    } else if (event.logicalKey == LogicalKeyboardKey.gamepadB ||
+        event.logicalKey == LogicalKeyboardKey.space) {
+      maskChange = 0x02;
+    } else if (event.logicalKey == LogicalKeyboardKey.gamepadX) {
+      maskChange = 0x04;
+    } else if (event.logicalKey == LogicalKeyboardKey.gamepadY) {
+      maskChange = 0x08;
+    }
+
+    if (event is KeyDownEvent) {
+      _currentButtonMask |= maskChange;
+    } else if (event is KeyUpEvent) {
+      _currentButtonMask &= ~maskChange;
+    }
+
+    // Stream input state to Rust via FFI
+    _engine.pushInput(_currentButtonMask);
+    return KeyEventResult.handled;
   }
 
   @override
   Widget build(BuildContext context) {
-    // This method is rerun every time setState is called, for instance as done
-    // by the _incrementCounter method above.
-    //
-    // The Flutter framework has been optimized to make rerunning build methods
-    // fast, so that you can just rebuild anything that needs updating rather
-    // than having to individually change instances of widgets.
-    return Scaffold(
-      appBar: AppBar(
-        // TRY THIS: Try changing the color here to a specific color (to
-        // Colors.amber, perhaps?) and trigger a hot reload to see the AppBar
-        // change color while the other colors stay the same.
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        // Here we take the value from the MyHomePage object that was created by
-        // the App.build method, and use it to set our appbar title.
-        title: Text(widget.title),
-      ),
-      body: Center(
-        // Center is a layout widget. It takes a single child and positions it
-        // in the middle of the parent.
-        child: Column(
-          // Column is also a layout widget. It takes a list of children and
-          // arranges them vertically. By default, it sizes itself to fit its
-          // children horizontally, and tries to be as tall as its parent.
-          //
-          // Column has various properties to control how it sizes itself and
-          // how it positions its children. Here we use mainAxisAlignment to
-          // center the children vertically; the main axis here is the vertical
-          // axis because Columns are vertical (the cross axis would be
-          // horizontal).
-          //
-          // TRY THIS: Invoke "debug painting" (choose the "Toggle Debug Paint"
-          // action in the IDE, or press "p" in the console), to see the
-          // wireframe for each widget.
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            const Text(
-              'You have pushed the button this many times:',
-            ),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headlineMedium,
-            ),
-          ],
+    return Focus(
+      autofocus: true,
+      onKeyEvent: _handleKeyEvent,
+      child: Scaffold(
+        appBar: AppBar(title: const Text('ARMv7-A Bluetooth Client')),
+        body: Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Card(
+                elevation: 4,
+                child: Padding(
+                  padding: const EdgeInsets.all(24.0),
+                  child: Column(
+                    children: [
+                      Icon(
+                        _isConnected ? Icons.sports_esports : Icons.bluetooth_disabled,
+                        size: 64,
+                        color: _isConnected ? Colors.blueAccent : Colors.orangeAccent,
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        _status,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(fontSize: 16, height: 1.4),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 24),
+              TextField(
+                controller: _ipController,
+                enabled: !_isConnected,
+                decoration: const InputDecoration(
+                  labelText: 'Pixel 9 Host IP Address',
+                  border: OutlineInputBorder(),
+                  hintText: 'e.g., 192.168.1.50',
+                ),
+                keyboardType: TextInputType.number,
+              ),
+              const SizedBox(height: 20),
+              ElevatedButton.icon(
+                onPressed: _isConnected ? null : _connectToHost,
+                icon: const Icon(Icons.link),
+                label: const Text('Connect to Host', style: TextStyle(fontSize: 16)),
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  backgroundColor: Colors.teal,
+                  foregroundColor: Colors.white,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: const Icon(Icons.add),
-      ), // This trailing comma makes auto-formatting nicer for build methods.
     );
   }
 }
