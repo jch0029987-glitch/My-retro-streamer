@@ -28,10 +28,10 @@ jobs:
       - name: Build with Cargo NDK
         run: |
           cargo install cargo-ndk
-          cargo ndk -t armeabi-v7a -p 34 build --release
+          cargo ndk --manifest-path server/Cargo.toml -t armeabi-v7a -p 34 build --release
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: libclient_bridge-armeabi-v7a
-          path: target/armv7-linux-androideabi/release/libclient_bridge.so
+          path: server/target/armv7-linux-androideabi/release/libclient_bridge.so
