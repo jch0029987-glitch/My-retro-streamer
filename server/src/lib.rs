@@ -114,7 +114,7 @@ pub extern "system" fn Java_com_jeremy_retroclient_NativeReceiver_startReceiver(
         if !env_ptr.is_null() {
             let functions = *env_ptr;
             if let Some(new_global_ref) = functions.NewGlobalRef {
-                GLOBAL_RECEIVER_OBJ = new_global_ref(env, thiz);
+                GLOBAL_RECEIVER_OBJ = new_global_ref(env, thiz as jni_sys::jobject);
             }
         }
     }
