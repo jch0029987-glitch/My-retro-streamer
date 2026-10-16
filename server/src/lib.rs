@@ -1,6 +1,5 @@
 use std::net::UdpSocket;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
 use std::thread;
 
 const MAX_UDP_PACKET_SIZE: usize = 1200;
@@ -81,7 +80,6 @@ pub extern "system" fn Java_com_jeremy_retroclient_NativeReceiver_startReceiver(
                             let bit_idx = (chunk_idx % 64) as usize;
                             G_CHUNKS_BITMAP[word_idx] |= 1u64 << bit_idx;
 
-                            // Check if frame is complete
                             let c0 = G_CHUNKS_BITMAP[0] == 0xFFFFFFFFFFFFFFFF;
                             let c1 = G_CHUNKS_BITMAP[1] == 0xFFFFFFFFFFFFFFFF;
                             let c2 = G_CHUNKS_BITMAP[2] == 0xFFFFFFFFFFFFFFFF;
@@ -111,3 +109,23 @@ pub extern "system" fn Java_com_jeremy_retroclient_NativeReceiver_stopReceiver(
     RUNNING.store(false, Ordering::SeqCst);
 }
 
+#[no_mangle]
+pub extern "system" fn Java_com_jeremy_retroclient_NativeReceiver_getStats(
+    env: *mut jni_sys::JNIEnv,
+    _thiz: *mut std::ffi::c_void,
+) -> *mut jni_sys::jlongArray {
+    let (packets, frames) = unsafe {
+        (G_PACKETS_RECEIVED as i64, G_FRAMES_RENDERED as i64)
+    };
+
+    let stats = [packets, frames];
+    unsafe {
+        let env_ref = &mut **env;
+        let array = (env_ref.NewLongArray.unwrap())(env, 2);
+        if array.is_null() {
+            return std::ptr::null_mut();
+        }
+        (env_ref.SetLongArrayRegion.unwrap())(env, array, 0, 2, stats.as_ptr());
+        array
+    }
+}
