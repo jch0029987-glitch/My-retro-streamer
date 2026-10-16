@@ -1,5 +1,5 @@
 use std::net::UdpSocket;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::thread;
 
 const MAX_UDP_PACKET_SIZE: usize = 1200;
@@ -11,8 +11,10 @@ const TOTAL_CHUNKS: usize = 205;
 static mut G_FRAME_BUFFER: [u8; EXPECTED_FRAME_SIZE] = [0; EXPECTED_FRAME_SIZE];
 static mut G_CHUNKS_BITMAP: [u64; 4] = [0; 4];
 static mut G_ACTIVE_SEQUENCE: u32 = 0;
-static mut G_PACKETS_RECEIVED: u64 = 0;
-static mut G_FRAMES_RENDERED: u64 = 0;
+
+// Thread-safe atomic counters (fixes the data race crash hazard)
+static G_PACKETS_RECEIVED: AtomicU64 = AtomicU64::new(0);
+static G_FRAMES_RENDERED: AtomicU64 = AtomicU64::new(0);
 
 static RUNNING: AtomicBool = AtomicBool::new(false);
 
@@ -48,9 +50,7 @@ pub extern "system" fn Java_com_jeremy_retroclient_NativeReceiver_startReceiver(
         while RUNNING.load(Ordering::SeqCst) {
             match socket.recv_from(&mut packet_buffer) {
                 Ok((n, _)) if n >= 8 => {
-                    unsafe {
-                        G_PACKETS_RECEIVED += 1;
-                    }
+                    G_PACKETS_RECEIVED.fetch_add(1, Ordering::Relaxed);
 
                     let seq = u32::from_be_bytes([
                         packet_buffer[0],
@@ -87,7 +87,7 @@ pub extern "system" fn Java_com_jeremy_retroclient_NativeReceiver_startReceiver(
                             let c3 = (G_CHUNKS_BITMAP[3] & c3_mask) == c3_mask;
 
                             if c0 && c1 && c2 && c3 {
-                                G_FRAMES_RENDERED += 1;
+                                G_FRAMES_RENDERED.fetch_add(1, Ordering::Relaxed);
                                 G_CHUNKS_BITMAP = [0; 4];
                             }
                         }
@@ -114,18 +114,31 @@ pub extern "system" fn Java_com_jeremy_retroclient_NativeReceiver_getStats(
     env: *mut jni_sys::JNIEnv,
     _thiz: *mut std::ffi::c_void,
 ) -> jni_sys::jlongArray {
-    let (packets, frames) = unsafe {
-        (G_PACKETS_RECEIVED as i64, G_FRAMES_RENDERED as i64)
-    };
+    let packets = G_PACKETS_RECEIVED.load(Ordering::Relaxed) as i64;
+    let frames = G_FRAMES_RENDERED.load(Ordering::Relaxed) as i64;
 
     let stats = [packets, frames];
     unsafe {
-        let env_ref = &mut **env;
-        let array = (env_ref.NewLongArray.unwrap())(env, 2);
+        let env_ptr = *env;
+        if env_ptr.is_null() {
+            return std::ptr::null_mut();
+        }
+        let functions = *env_ptr;
+        
+        let new_long_array = match functions.NewLongArray {
+            Some(f) => f,
+            None => return std::ptr::null_mut(),
+        };
+        let set_long_array_region = match functions.SetLongArrayRegion {
+            Some(f) => f,
+            None => return std::ptr::null_mut(),
+        };
+
+        let array = new_long_array(env, 2);
         if array.is_null() {
             return std::ptr::null_mut();
         }
-        (env_ref.SetLongArrayRegion.unwrap())(env, array, 0, 2, stats.as_ptr());
+        set_long_array_region(env, array, 0, 2, stats.as_ptr());
         array
     }
 }
