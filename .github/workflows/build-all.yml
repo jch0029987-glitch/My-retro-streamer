@@ -20,7 +20,7 @@ jobs:
           targets: armv7-linux-androideabi
 
       - name: Setup Android NDK
-        uses: nttld/setup-ndk@v3
+        uses: nttld/setup-ndk@v1
         with:
           ndk-version: r27c
           link-to-sdk: false
