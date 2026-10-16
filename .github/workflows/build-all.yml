@@ -11,28 +11,27 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout Repository
-      uses: actions/checkout@v4
+      - name: Checkout Repository
+        uses: actions/checkout@v4
 
-    - name: Set up Rust Toolchain
-      uses: dtolnay/rust-toolchain@stable
-      with:
-        targets: armv7-linux-androideabi
+      - name: Set up Rust Toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: armv7-linux-androideabi
 
-    - name: Setup Android NDK
-      uses: nttld/setup-ndk@v3
-      with:
-        ndk-version: r27c
-        link-to-sdk: false
+      - name: Setup Android NDK
+        uses: nttld/setup-ndk@v3
+        with:
+          ndk-version: r27c
+          link-to-sdk: false
 
-    - name: Build with Cargo NDK
-      run: |
-        cargo install cargo-ndk
-        cargo ndk -t armeabi-v7a -p 34 build --release
+      - name: Build with Cargo NDK
+        run: |
+          cargo install cargo-ndk
+          cargo ndk -t armeabi-v7a -p 34 build --release
 
-    - name: Upload Artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: libclient_bridge-armeabi-v7a
-        path: target/armv7-linux-androideabi/release/libclient_bridge.so
-EOF
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: libclient_bridge-armeabi-v7a
+          path: target/armv7-linux-androideabi/release/libclient_bridge.so
