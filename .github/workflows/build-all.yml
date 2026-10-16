@@ -1,45 +1,40 @@
-name: Build Android Native Library
+name: Build Host & Client Native Binaries
 
 on:
   push:
-    branches: [ main, master ]
-  pull_request:
-    branches: [ main, master ]
+    branches: [ "main" ]
 
 jobs:
-  build:
+  build-rust:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout Repository
+      - name: Checkout Code
         uses: actions/checkout@v4
 
       - name: Set up Rust Toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
-          targets: armv7-linux-androideabi
+          targets: |
+            aarch64-linux-android
+            armv7-linux-androideabi
 
-      - name: Setup Android NDK
-        uses: nttld/setup-ndk@v1
-        with:
-          ndk-version: r27c
-          link-to-sdk: false
+      - name: Install Cargo NDK
+        run: cargo install cargo-ndk
 
-      - name: Build with Cargo NDK
+      - name: Build Pixel 9 Host Binary (ARM64)
         run: |
-          cargo install cargo-ndk
-          cd server
-          cargo ndk -t armeabi-v7a --platform 34 -o ./jniLibs build --release
+          cd rust_engine
+          cargo ndk -t aarch64-linux-android -p 26 build --release --features host
 
-      - name: Verify Binary Architecture
+      - name: Build Client Binary (ARMv7-A)
         run: |
-          cd server/jniLibs/armeabi-v7a
-          file libclient_bridge.so
-          readelf -h libclient_bridge.so | grep -E "Class|Machine"
-          file libclient_bridge.so | grep -q "32-bit" || (echo "ERROR: Built library is not 32-bit!" && exit 1)
+          cd rust_engine
+          cargo ndk -t armv7-linux-androideabi -p 21 build --release --features client
 
-      - name: Upload Artifact
+      - name: Upload Binaries
         uses: actions/upload-artifact@v4
         with:
-          name: libclient_bridge-armeabi-v7a
-          path: server/jniLibs/armeabi-v7a/libclient_bridge.so
+          name: all-native-libs
+          path: |
+            rust_engine/target/aarch64-linux-android/release/libretro_engine.so
+            rust_engine/target/armv7-linux-androideabi/release/libretro_engine.so
