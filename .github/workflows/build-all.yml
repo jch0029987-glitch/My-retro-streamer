@@ -29,10 +29,17 @@ jobs:
         run: |
           cargo install cargo-ndk
           cd server
-          cargo ndk -t armeabi-v7a --platform 34 build --release
+          cargo ndk -t armeabi-v7a --platform 34 -o ./jniLibs build --release
+
+      - name: Verify Binary Architecture
+        run: |
+          cd server/jniLibs/armeabi-v7a
+          file libclient_bridge.so
+          readelf -h libclient_bridge.so | grep -E "Class|Machine"
+          file libclient_bridge.so | grep -q "32-bit" || (echo "ERROR: Built library is not 32-bit!" && exit 1)
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: libclient_bridge-armeabi-v7a
-          path: server/target/armv7-linux-androideabi/release/libclient_bridge.so
+          path: server/jniLibs/armeabi-v7a/libclient_bridge.so
