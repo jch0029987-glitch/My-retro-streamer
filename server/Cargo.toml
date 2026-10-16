@@ -1,0 +1,11 @@
+[package]
+name = "client_bridge"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "client_bridge"
+crate-type = ["cdylib"]
+
+[dependencies]
+# Standard library only—zero external crate dependencies
