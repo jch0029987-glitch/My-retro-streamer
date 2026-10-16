@@ -31,13 +31,11 @@ jobs:
       - name: Install Cargo NDK
         run: cargo install cargo-ndk
 
-      - name: Build Rust Engine for Pixel 9 Host (ARM64)
-        working-directory: rust_engine
-        run: cargo ndk -t aarch64-linux-android -p 26 build --release --features host
-
-      - name: Build Rust Engine for Client (ARMv7-A)
-        working-directory: rust_engine
-        run: cargo ndk -t armv7-linux-androideabi -p 21 build --release --features client
+      - name: Build Rust Engine for Both Targets
+        run: |
+          cd rust_engine
+          cargo ndk -t aarch64-linux-android -p 26 build --release --features host
+          cargo ndk -t armv7-linux-androideabi -p 21 build --release --features client
 
       - name: Set up Flutter SDK
         uses: subosito/flutter-action@v2
