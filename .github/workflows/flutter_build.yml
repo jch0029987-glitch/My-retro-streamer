@@ -32,14 +32,12 @@ jobs:
         run: cargo install cargo-ndk
 
       - name: Build Rust Engine for Pixel 9 Host (ARM64)
-        run: |
-          cd rust_engine
-          cargo ndk -t aarch64-linux-android -p 26 build --release --features host
+        working-directory: rust_engine
+        run: cargo ndk -t aarch64-linux-android -p 26 build --release --features host
 
       - name: Build Rust Engine for Client (ARMv7-A)
-        run: |
-          cd rust_engine
-          cargo ndk -t armv7-linux-androideabi -p 21 build --release --features client
+        working-directory: rust_engine
+        run: cargo ndk -t armv7-linux-androideabi -p 21 build --release --features client
 
       - name: Set up Flutter SDK
         uses: subosito/flutter-action@v2
@@ -50,22 +48,18 @@ jobs:
 
       - name: Build Pixel 9 Host APK
         run: |
-          # Copy compiled ARM64 library into host jniLibs
           mkdir -p retro_host_app/android/app/src/main/jniLibs/arm64-v8a
           cp rust_engine/target/aarch64-linux-android/release/libretro_engine.so retro_host_app/android/app/src/main/jniLibs/arm64-v8a/
-
-          # Build Flutter Host APK
+          
           cd retro_host_app
           flutter pub get
           flutter build apk --release
 
       - name: Build ARMv7-A Client APK
         run: |
-          # Copy compiled ARMv7 library into client jniLibs (Android expects armeabi-v7a)
           mkdir -p retro_client_app/android/app/src/main/jniLibs/armeabi-v7a
           cp rust_engine/target/armv7-linux-androideabi/release/libretro_engine.so retro_client_app/android/app/src/main/jniLibs/armeabi-v7a/
-
-          # Build Flutter Client APK
+          
           cd retro_client_app
           flutter pub get
           flutter build apk --release
